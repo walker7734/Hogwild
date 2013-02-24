@@ -17,7 +17,7 @@ public class HogwildSGD {
 
     public HogwildSGD (HogwildDataSet dataSet, double step, double lambda) {
         data = dataSet;
-        this.lambda = lambda;
+        HogwildSGD.lambda = lambda;
         this.step = step;
         weights = new CPWeights();
         oldWeights = new CPWeights();
