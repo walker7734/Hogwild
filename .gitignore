@@ -1,3 +1,5 @@
 bin/
 
-src/main/resources/data/*
+src/main/java/resources/data/*
+
+*.txt
