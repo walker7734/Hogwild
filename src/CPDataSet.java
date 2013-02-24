@@ -8,12 +8,12 @@ import java.util.Scanner;
 public class CPDataSet extends HogwildDataSet {
     public static final int TRAINING_SIZE = 2335859;
     public static final int TESTING_SIZE = 1016552;
-    private int[] dataPoints;
+    private CPDataInstance[] dataPoints;
     private static int startingIndex;
     
     public CPDataSet(String filename, boolean training) throws IOException {
         super(filename, training);
-        dataPoints = (training) ? new int[TRAINING_SIZE] : new int[TESTING_SIZE];
+        dataPoints = (training) ? new CPDataInstance[TRAINING_SIZE] : new CPDataInstance[TESTING_SIZE];
         startingIndex = 0;
         parseData();
     }
@@ -22,10 +22,10 @@ public class CPDataSet extends HogwildDataSet {
     private void parseData() throws IOException {
 
        int index = 1;
-       dataPoints[0] = 0;
+       dataPoints[0] = new CPDataInstance(readFromFile(0), isTraining);
        for (int i = 1; i < buff.length; i++) {
            if (buff[i-1] == '\n') {
-               dataPoints[index] = i;
+               dataPoints[index] = new CPDataInstance(readFromFile(i), isTraining);
                index++;
            }
        }
@@ -33,22 +33,22 @@ public class CPDataSet extends HogwildDataSet {
 
     @Override
     public HogwildDataInstance getInstanceAt(int index) {
-        return new CPDataInstance(readFromFile(dataPoints[index]), isTraining);
+        return dataPoints[index];
     }
 
     @Override
-    public synchronized HogwildDataInstance getRandomInstance(boolean withReplacement) {
+    public HogwildDataInstance getRandomInstance(boolean withReplacement) {
         int index;
         if (withReplacement) {
             index = (int) (Math.random() * (dataPoints.length - 1));
-            return new CPDataInstance(readFromFile(dataPoints[index]), isTraining);
+            return dataPoints[index];
         }
 
         startingIndex = (startingIndex == dataPoints.length - 1) ? 0 : startingIndex;
         index = startingIndex + (int) (Math.random() * (dataPoints.length - startingIndex - 1));
 
-        CPDataInstance newData = new CPDataInstance(readFromFile(dataPoints[index]), isTraining);
-        int temp = dataPoints[startingIndex];
+        CPDataInstance newData = dataPoints[index];
+        CPDataInstance temp = dataPoints[startingIndex];
         dataPoints[startingIndex] = dataPoints[index];
         dataPoints[index] = temp;
         startingIndex++;

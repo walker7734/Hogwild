@@ -3,11 +3,11 @@ import java.io.IOException;
 
 
 public class HogwildMain {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         CPDataSet ds = new CPDataSet("data/train.txt", true);
-        HogwildSGD sgd = new HogwildSGD(ds, .01, .0);
+        HogwildSGD sgd = new HogwildSGD(ds, .001, .0);
         CPWeights weights =   sgd.run();
-        printResults(weights);
+        //printResults(weights);
     }
 
     public static void printResults(CPWeights weights) {

@@ -3,6 +3,7 @@ import hogwild_abstract.HogwildWeights;
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class CPWeights extends HogwildWeights{
@@ -11,19 +12,19 @@ public class CPWeights extends HogwildWeights{
      * query.get("123") will return the weight for the feature:
      * "token 123 in the query field".
      */
-    Map<Integer, Double> wTokens;
-    double wPosition;
-    double wDepth;
-    double wAge;
-    double wGender;
+    volatile double[] wTokens;
+    volatile double wPosition;
+    volatile double wDepth;
+    volatile double wAge;
+    volatile double wGender;
     
     Map<Integer, Integer> accessTime; // keep track of the access timestamp of feature weights.
                                      // Using this to do delayed regularization.
     
     public CPWeights() {
         w0 = wAge = wGender = wDepth = wPosition = 0.0;
-        wTokens = new HashMap<Integer, Double>();
-        accessTime = new HashMap<Integer, Integer>();
+        wTokens = new double[1500000];
+        accessTime = new ConcurrentHashMap<Integer, Integer>();
     }
 
     @Override
@@ -45,7 +46,7 @@ public class CPWeights extends HogwildWeights{
     public double l2norm() {
         double l2 = w0 * w0 + wAge * wAge + wGender * wGender
                                 + wDepth*wDepth + wPosition*wPosition;
-        for (double w : wTokens.values())
+        for (double w : wTokens)
             l2 += w * w;
         return Math.sqrt(l2);
     }
@@ -54,6 +55,6 @@ public class CPWeights extends HogwildWeights{
      * @return the l0 norm of this weight vector.
      */
     public int l0norm() {
-        return 4 + wTokens.size();
+        return 4 + wTokens.length;
     }
 }
