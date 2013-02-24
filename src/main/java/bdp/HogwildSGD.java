@@ -48,10 +48,11 @@ public class HogwildSGD {
             //setup thread pool
             ExecutorService pool = Executors.newFixedThreadPool(NUM_CORES);
             System.out.println(NUM_CORES);
-            for (int thread = 0; thread < 4; thread++) {
+            for (int thread = 0; thread < NUM_CORES; thread++) {
                 pool.submit(new Runnable() {
                     @Override
                     public void run() {
+                    	System.out.println(Thread.currentThread().getName());
                         int count = 0;
                         for (int i = 0; i < data.getSize(); i++) {
                             count++;
@@ -76,7 +77,8 @@ public class HogwildSGD {
     }
 
     public double calculateProbability(double weightProduct) {
-        return Math.exp(weightProduct) / (1.0 + Math.exp(weightProduct));
+    	Double expProd = Math.exp(weightProduct);
+        return  expProd / (1.0 + expProd);
     }
 
     public void calculateWeight(CPDataInstance feature,

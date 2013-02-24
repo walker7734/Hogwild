@@ -25,6 +25,7 @@ public class HogwildMain {
         CPDataSet ds = new CPDataSet(new HogwildMain().trainUrl(), true);
         CPDataSet ts = new CPDataSet(new HogwildMain().testUrl(), false);
         String labs = new HogwildMain().testLabelUrl();
+        
         HogwildSGD sgd = new HogwildSGD(ds, ts, labs, 0.001, 0.0);
         CPWeights weights =   sgd.run();
         printResults(weights);
