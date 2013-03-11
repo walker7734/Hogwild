@@ -7,12 +7,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 
 public class CPWeights extends HogwildWeights{
+
+    //volatile to allow for atomic updates
     double w0;
-    /*
-     * query.get("123") will return the weight for the feature:
-     * "token 123 in the query field".
-     */
-    volatile double[] wTokens;
+    double[] wTokens;
     volatile double wPosition;
     volatile double wDepth;
     volatile double wAge;

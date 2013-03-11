@@ -11,16 +11,21 @@ import java.util.ArrayList;
  * To change this template use File | Settings | File Templates.
  */
 public class ReportResults {
-    public static void printWeights(double[] weight) {
-        for (int i = 0; i < 500; i++) {
-            if (weight[i] != 0) {
-                System.out.println("token " + i + " weight:" + weight[i]);
-            }
-        }
-    }
 
+    /**
+     * Simple static method to print out the RMSE.
+     * @param predictions ArrayList<Double> containing the probabilities for each of
+     *                    of the test data elements.
+     *
+     * @param solnFile String representing the file path to obtain the labels that
+     *                 correspond to the test data elements
+     */
     public static void printRMSE(ArrayList<Double> predictions, String solnFile) {
         System.out.println("RMSE: " + EvalUtil.eval(solnFile, predictions));
+    }
+
+    public static double getRMSE(ArrayList<Double> predictions, String solnFile) {
+        return EvalUtil.eval(solnFile, predictions);
     }
 
 }

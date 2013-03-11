@@ -1,68 +1,68 @@
 import hogwild_abstract.HogwildDataInstance;
 import hogwild_abstract.HogwildDataSet;
-
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class HogwildSGD {
     private static HogwildDataSet data;
-    private static final double EPSILON = .1;
     private static final int NUM_CORES = Runtime.getRuntime().availableProcessors();
     private static double lambda;
     private static CPWeights weights;
-    private static CPWeights oldWeights;
-    private static int count;
+    private static AlgorithmType TYPE;
+    private static final Random randy = new Random();
+    private static int UPDATE_FREQ;
     private static double step;
+    private static final Object lock = new Object();
     private static double averageLoss;
+    private static long updatingThread;
 
-    public HogwildSGD (HogwildDataSet dataSet, double step, double lambda) {
+    public HogwildSGD (HogwildDataSet dataSet, double step, double lambda, AlgorithmType type) {
         data = dataSet;
         this.lambda = lambda;
         this.step = step;
+        TYPE = type;
         weights = new CPWeights();
-        oldWeights = new CPWeights();
     }
 
-    public CPWeights run() throws IOException, InterruptedException {
+    public CPWeights run(int cores) throws IOException, InterruptedException {
         if (data == null) {
             throw new IllegalArgumentException("HogwildSGD: data set cannot be null");
         }
 
-        long startTime = System.currentTimeMillis();
-        boolean converged = false;
-        while (!converged) {
+        final int coresToUse = (cores < 1 || cores > NUM_CORES) ? NUM_CORES : cores;
+        UPDATE_FREQ = coresToUse;
 
-            //setup thread pool
-            ExecutorService pool = Executors.newFixedThreadPool(NUM_CORES);
-            System.out.println(NUM_CORES);
-            for (int thread = 0; thread < 4; thread++) {
-                pool.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        int count = 0;
-                        for (int i = 0; i < data.getSize(); i++) {
-                            count++;
-                            sampleAndUpdate();
-                        }
-                        System.out.println(count);
+        //clear weights and start from fresh
+        weights = new CPWeights();
+
+        //not currently checking for specific convergence
+        //TODO figure out how to check for convergence
+
+        //setup thread pool
+        ExecutorService pool = Executors.newFixedThreadPool(coresToUse);
+
+        //initialize each thread, should be equal to max number of cores for max
+        //efficiency
+        for (int thread = 0; thread < coresToUse; thread++) {
+            pool.submit(new Runnable() {
+                @Override
+                public void run() {
+                    for (int i = 0; i < (data.getSize() * 1) / coresToUse; i++) {
+                        sampleAndUpdate();
                     }
-                });
-            }
-
-            pool.shutdown();
-
-            //wait
-            pool.awaitTermination(120, TimeUnit.HOURS);
-            converged = true;
+                }
+            });
         }
 
-        long endTime = System.currentTimeMillis();
-        System.out.println("Time to completion: " + (endTime - startTime)/1000 + "s");
-        CPDataSet testSet = new CPDataSet("data/test.txt", false);
-        ReportResults.printRMSE(predict(testSet), "data/test_label.txt");
+        pool.shutdown();
+
+        //block until all threads complete
+        pool.awaitTermination(120, TimeUnit.HOURS);
+
         return weights;
     }
 
@@ -71,16 +71,24 @@ public class HogwildSGD {
     }
 
     public void calculateWeight(CPDataInstance feature,
-                                       double gradient,
-                                       int timestamp) {
+                                       double gradient) {
 
-        weights.w0 = weights.w0 + step*gradient;
-        weights.wAge = weights.wAge*(1 - lambda*step) + step*(feature.age*gradient);
-        weights.wGender = weights.wGender*(1 - lambda*step) + step*(feature.gender*gradient);
-        weights.wPosition = weights.wPosition*(1 - lambda*step) + step*(feature.position*gradient);
-        weights.wDepth = weights.wDepth*(1 - lambda*step) + step*(feature.depth*gradient);
 
-        //update tokens
+        //determine method for updating non-sparse data
+        switch (TYPE) {
+            case RANDOM: randomizeNonSparseUpdate(gradient, feature);
+                         break;
+            case LOCK: lockNonSparseUpdate(gradient, feature);
+                        break;
+            case SINGLE_THREAD:
+                        oneThreadUpdate(gradient, feature);
+                        break;
+            default:    normalNonSparseUpdate(gradient, feature);
+                        break;
+        }
+
+
+        //update tokens, sparse data
         int[] tokens = feature.tokens;
         for (int token : tokens) {
             double tokenWeight = weights.wTokens[token];
@@ -88,12 +96,41 @@ public class HogwildSGD {
         }
     }
 
+
+    private void normalNonSparseUpdate(double gradient, CPDataInstance feature) {
+        weights.w0 = weights.w0 + step*gradient;
+        weights.wAge = weights.wAge*(1 - lambda*step) + step*(feature.age*gradient);
+        weights.wGender = weights.wGender*(1 - lambda*step) + step*(feature.gender*gradient);
+        weights.wPosition = weights.wPosition*(1 - lambda*step) + step*(feature.position*gradient);
+        weights.wDepth = weights.wDepth*(1 - lambda*step) + step*(feature.depth*gradient);
+    }
+
+    private synchronized void lockNonSparseUpdate(double gradient, CPDataInstance feature) {
+        normalNonSparseUpdate(gradient, feature);
+    }
+
+    //randomizes the updates of the non sparse data so that the data is treated as sparse even if it is not.
+    //This minimizes data collisions that would otherwise occur on every iteration.  However, this is likely
+    //to decrease accuracy. The probability of each thread updating any particular weight can be adjusted by
+    //changing the UPDATE_FREQ field.
+    private void randomizeNonSparseUpdate(double gradient, CPDataInstance feature) {
+        if (randy.nextInt(UPDATE_FREQ) == 1) {
+           normalNonSparseUpdate(gradient, feature);
+        }
+    }
+
+    private void oneThreadUpdate(double gradient, CPDataInstance feature) {
+        if (updatingThread == 0) updatingThread = Thread.currentThread().getId();
+        if (Thread.currentThread().getId() == updatingThread) {
+            normalNonSparseUpdate(gradient, feature);
+        }
+    }
+
     /**
-     * Apply delayed regularization to the weights corresponding to the given tokens.
+     * Not currently being used
      */
     private void performDelayedRegularization(int[] tokens,
                                               int now) {
-
         for (int token : tokens) {
             if (weights.accessTime.containsKey(token)) {
                 double weight = weights.wTokens[token];
@@ -104,6 +141,10 @@ public class HogwildSGD {
         }
     }
 
+    /**
+     *
+     * Not currently being used
+     */
     private void preformFullRegularization(int now) {
 
         for (int i = 0; i < weights.wTokens.length; i++) {
@@ -131,6 +172,11 @@ public class HogwildSGD {
         return innerProduct;
     }
 
+    /**
+     * Predicts the probability of a click based on the training data
+     * @param dataset
+     * @return
+     */
     public ArrayList<Double> predict(HogwildDataSet dataset) {
         ArrayList<Double> prediction = new ArrayList<Double>();
         for (int i = 0; i < dataset.getSize(); i++) {
@@ -139,16 +185,6 @@ public class HogwildSGD {
             prediction.add(calculateProbability(weightProduct));
         }
         return prediction;
-    }
-
-    private boolean didConverge() {
-        double maxWeightDifference = 0;
-        maxWeightDifference = Math.max(Math.abs(weights.w0 - oldWeights.w0), maxWeightDifference);
-        maxWeightDifference = Math.max(Math.abs(weights.wAge - oldWeights.wAge), maxWeightDifference);
-        maxWeightDifference = Math.max(Math.abs(weights.wDepth - oldWeights.wDepth), maxWeightDifference);
-        maxWeightDifference = Math.max(Math.abs(weights.wPosition - oldWeights.wPosition), maxWeightDifference);
-        maxWeightDifference = Math.max(Math.abs(weights.wGender - oldWeights.wGender), maxWeightDifference);
-        return maxWeightDifference < EPSILON;
     }
 
     public static double calculateAverageLoss(double currentLoss, double prediction, int clicked) {
@@ -165,9 +201,6 @@ public class HogwildSGD {
         boolean  withReplacement = false;
         CPDataInstance dataPoint = (CPDataInstance)data.getRandomInstance(withReplacement);
 
-        //increment the current time
-        count += 1;
-
         //calculate the probability
         double innerProduct = computeWeightFeatureProduct(dataPoint);
         double prob = calculateProbability(innerProduct);
@@ -180,7 +213,7 @@ public class HogwildSGD {
         averageLoss = calculateAverageLoss(averageLoss, prob, y);
 
         //update weights
-        calculateWeight(dataPoint, gradient, count);
+        calculateWeight(dataPoint, gradient);
 
     }
 }
