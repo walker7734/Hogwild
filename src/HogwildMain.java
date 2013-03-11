@@ -1,11 +1,9 @@
 import util.EvalUtil;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 
 public class HogwildMain {
@@ -14,24 +12,49 @@ public class HogwildMain {
     public static void main(String[] args) throws IOException, InterruptedException {
         CPDataSet ds = new CPDataSet("data/train.txt", true);
         CPDataSet testData = new CPDataSet("data/test.txt", false);
+        ArrayList<Double> ctr = parseCTR("data/test_label.txt");
 
         HogwildSGD sgd = new HogwildSGD(ds, .001, .0, AlgorithmType.NORMAL);
         double averageError = 0;
         double averageRuntime = 0;
+        List<CPWeights> weightVector = new ArrayList<CPWeights>();
+        List<Double> runtimeVector = new ArrayList<Double>();
+
+        //calculate weights
         for (int i = 0; i < iterations; i++) {
             double start = System.currentTimeMillis();
-            CPWeights weights = sgd.run(2);
+            weightVector.add(sgd.run(2));
             double end = System.currentTimeMillis();
-            printResults(weights);
-            ArrayList<Double> predictions = sgd.predict(testData);
-            double error = ReportResults.getRMSE(predictions, "data/test_label.txt");
-            double runtime = end - start;
-            averageRuntime += runtime/iterations;
-            averageError += error/iterations;
-            System.out.println(4 + "," + ReportResults.getRMSE(predictions, "data/test_label.txt") + "," + runtime);
+            printResults(weightVector.get(weightVector.size() - 1));
+            runtimeVector.add(end - start);
+            averageRuntime += runtimeVector.get(runtimeVector.size() - 1)/iterations;
         }
+
+        //calculate predictions
+        for (int i = 0; i < iterations; i++) {
+            ArrayList<Double> predictions = sgd.predict(testData, weightVector.get(i));
+            double error = ReportResults.getRMSE(predictions, ctr);
+            averageError += error/iterations;
+            System.out.println(4 + "," + error + "," + runtimeVector.get(i));
+        }
+
+        //report averages
         System.out.println("Average Error For " + iterations + " Iterations: " + averageError);
         System.out.println("Average Runtime For " + iterations + " Iterations: " + averageRuntime);
+    }
+
+    public static ArrayList<Double> parseCTR(String path) {
+        try {
+            Scanner input = new Scanner(new BufferedReader(new FileReader(path)));
+            ArrayList<Double> ctr = new ArrayList<Double>();
+            while (input.hasNextDouble()) {
+                ctr.add(input.nextDouble());
+            }
+            return ctr;
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public static void printResults(CPWeights weights) {

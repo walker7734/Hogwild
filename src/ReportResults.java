@@ -24,8 +24,16 @@ public class ReportResults {
         System.out.println("RMSE: " + EvalUtil.eval(solnFile, predictions));
     }
 
+    public static void printRMSE(ArrayList<Double> predictions, ArrayList<Double> actual) {
+        System.out.println("RMSE: " + EvalUtil.eval(actual, predictions));
+    }
+
     public static double getRMSE(ArrayList<Double> predictions, String solnFile) {
         return EvalUtil.eval(solnFile, predictions);
+    }
+
+    public static double getRMSE(ArrayList<Double> predictions, ArrayList<Double> actual) {
+        return EvalUtil.eval(actual, predictions);
     }
 
 }

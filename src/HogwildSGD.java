@@ -22,8 +22,8 @@ public class HogwildSGD {
 
     public HogwildSGD (HogwildDataSet dataSet, double step, double lambda, AlgorithmType type) {
         data = dataSet;
-        this.lambda = lambda;
-        this.step = step;
+        HogwildSGD.lambda = lambda;
+        HogwildSGD.step = step;
         TYPE = type;
         weights = new CPWeights();
     }
@@ -51,7 +51,7 @@ public class HogwildSGD {
             pool.submit(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i = 0; i < (data.getSize() * 1) / coresToUse; i++) {
+                    for (int i = 0; i < data.getSize() * 1 / coresToUse; i++) {
                         sampleAndUpdate();
                     }
                 }
@@ -174,10 +174,9 @@ public class HogwildSGD {
 
     /**
      * Predicts the probability of a click based on the training data
-     * @param dataset
-     * @return
      */
-    public ArrayList<Double> predict(HogwildDataSet dataset) {
+    public ArrayList<Double> predict(HogwildDataSet dataset, CPWeights predictionWeights) {
+        weights = predictionWeights;
         ArrayList<Double> prediction = new ArrayList<Double>();
         for (int i = 0; i < dataset.getSize(); i++) {
             CPDataInstance instance = (CPDataInstance)dataset.getInstanceAt(i);

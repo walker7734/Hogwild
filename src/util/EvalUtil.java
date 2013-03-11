@@ -33,6 +33,21 @@ public class EvalUtil {
 			return Double.MAX_VALUE;
 		}
 	}
+
+    public static double eval(ArrayList<Double> ctr, ArrayList<Double> ctr_prediction) {
+        try {
+            int size = ctr_prediction.size();
+            double wmse = 0.0;
+            for (int i = 0; i < size; i++) {
+                wmse += Math.pow((ctr.get(i) - ctr_prediction.get(i)), 2);
+            }
+            wmse /= size;
+            return Math.sqrt(wmse);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Double.MAX_VALUE;
+        }
+    }
 	
 	/**
 	 * Evaluates the model by computing the weighted rooted mean square error of
