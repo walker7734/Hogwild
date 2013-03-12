@@ -4,6 +4,7 @@ import hogwild_abstract.HogwildDataSet;
 import java.io.*;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class CPDataSet extends HogwildDataSet {
     public static final int TRAINING_SIZE = 2335859;
@@ -37,20 +38,20 @@ public class CPDataSet extends HogwildDataSet {
     }
 
     @Override
-    public HogwildDataInstance getRandomInstance(boolean withReplacement) {
-        int index;
+    public synchronized HogwildDataInstance getRandomInstance(boolean withReplacement) {
+        AtomicInteger index = new AtomicInteger();
         if (withReplacement) {
-            index = (int) (Math.random() * (dataPoints.length - 1));
-            return dataPoints[index];
+            index.set((int) (Math.random() * (dataPoints.length - 1)));
+            return dataPoints[index.get()];
         }
 
         startingIndex = (startingIndex == dataPoints.length - 1) ? 0 : startingIndex;
-        index = startingIndex + (int) (Math.random() * (dataPoints.length - startingIndex - 1));
+        index.set(startingIndex + (int) (Math.random() * (dataPoints.length - startingIndex - 1)));
 
-        CPDataInstance newData = dataPoints[index];
+        CPDataInstance newData = dataPoints[index.get()];
         CPDataInstance temp = dataPoints[startingIndex];
-        dataPoints[startingIndex] = dataPoints[index];
-        dataPoints[index] = temp;
+        dataPoints[startingIndex] = dataPoints[index.get()];
+        dataPoints[index.get()] = temp;
         startingIndex++;
         return newData;
 

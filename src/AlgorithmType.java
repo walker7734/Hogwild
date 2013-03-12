@@ -21,8 +21,6 @@ public enum AlgorithmType {
     //replicates the non-sparse data across each thread so there is no chance of a data race
     REPLICATE,
 
-
-    SINGLE_THREAD,
-
-    ASSIGNMENT
+    //assigns a single thread to update the weights at each iteration which ensures that there are no collisions
+    SINGLE_THREAD
 }

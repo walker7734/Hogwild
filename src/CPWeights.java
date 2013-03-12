@@ -1,7 +1,5 @@
 import hogwild_abstract.HogwildWeights;
-
 import java.text.DecimalFormat;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,17 +9,17 @@ public class CPWeights extends HogwildWeights{
     //volatile to allow for atomic updates
     double w0;
     double[] wTokens;
-    volatile double wPosition;
-    volatile double wDepth;
-    volatile double wAge;
-    volatile double wGender;
+    double wPosition;
+    double wDepth;
+    double wAge;
+    double wGender;
     
     Map<Integer, Integer> accessTime; // keep track of the access timestamp of feature weights.
                                      // Using this to do delayed regularization.
     
     public CPWeights() {
         w0 = wAge = wGender = wDepth = wPosition = 0.0;
-        wTokens = new double[1500000];
+        wTokens = new double[2000000];
         accessTime = new ConcurrentHashMap<Integer, Integer>();
     }
 

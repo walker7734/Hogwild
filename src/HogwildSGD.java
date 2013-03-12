@@ -1,4 +1,3 @@
-import hogwild_abstract.HogwildDataInstance;
 import hogwild_abstract.HogwildDataSet;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,7 +15,6 @@ public class HogwildSGD {
     private static final Random randy = new Random();
     private static int UPDATE_FREQ;
     private static double step;
-    private static final Object lock = new Object();
     private static double averageLoss;
     private static long updatingThread;
 
@@ -36,11 +34,7 @@ public class HogwildSGD {
         final int coresToUse = (cores < 1 || cores > NUM_CORES) ? NUM_CORES : cores;
         UPDATE_FREQ = coresToUse;
 
-        //clear weights and start from fresh
-        weights = new CPWeights();
-
-        //not currently checking for specific convergence
-        //TODO figure out how to check for convergence
+        resetFields();
 
         //setup thread pool
         ExecutorService pool = Executors.newFixedThreadPool(coresToUse);
@@ -51,7 +45,10 @@ public class HogwildSGD {
             pool.submit(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i = 0; i < data.getSize() * 1 / coresToUse; i++) {
+                    if (TYPE == AlgorithmType.SINGLE_THREAD && updatingThread == 0) {
+                        updatingThread = Thread.currentThread().getId();
+                    }
+                    for (int i = 0; i < data.getSize() * 4 / coresToUse; i++) {
                         sampleAndUpdate();
                     }
                 }
@@ -64,6 +61,15 @@ public class HogwildSGD {
         pool.awaitTermination(120, TimeUnit.HOURS);
 
         return weights;
+    }
+
+    private void resetFields() {
+        updatingThread = 0;
+
+        //clear weights and start from fresh
+        weights = new CPWeights();
+
+        averageLoss = 0;
     }
 
     public double calculateProbability(double weightProduct) {
@@ -96,7 +102,6 @@ public class HogwildSGD {
         }
     }
 
-
     private void normalNonSparseUpdate(double gradient, CPDataInstance feature) {
         weights.w0 = weights.w0 + step*gradient;
         weights.wAge = weights.wAge*(1 - lambda*step) + step*(feature.age*gradient);
@@ -120,7 +125,6 @@ public class HogwildSGD {
     }
 
     private void oneThreadUpdate(double gradient, CPDataInstance feature) {
-        if (updatingThread == 0) updatingThread = Thread.currentThread().getId();
         if (Thread.currentThread().getId() == updatingThread) {
             normalNonSparseUpdate(gradient, feature);
         }
