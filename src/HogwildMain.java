@@ -15,7 +15,7 @@ public class HogwildMain {
         ArrayList<Double> ctr = parseCTR("data/test_label.txt");
         System.err.println("Finished loading data...");
 
-        HogwildSGD sgd = new HogwildSGD(ds, .001, .0, AlgorithmType.RANDOM);
+        HogwildSGD sgd = new HogwildSGD(ds, .001, .0, AlgorithmType.REPLICATE);
         double averageError = 0;
         double averageRuntime = 0;
         List<CPWeights> weightVector = new ArrayList<CPWeights>();
@@ -35,7 +35,6 @@ public class HogwildMain {
 
         //calculate predictions
         for (int i = 0; i < iterations; i++) {
-            System.err.println("calculating rmse for iteration " + i);
             ArrayList<Double> predictions = sgd.predict(testData, weightVector.get(i));
             double error = ReportResults.getRMSE(predictions, ctr);
             averageError += error/iterations;
